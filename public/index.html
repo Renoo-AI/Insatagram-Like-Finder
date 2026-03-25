@@ -74,6 +74,21 @@
       font-size: 14px;
       color: #666;
       display: none;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+    }
+    .spinner {
+      border: 2px solid #f3f3f3;
+      border-top: 2px solid #0095f6;
+      border-radius: 50%;
+      width: 14px;
+      height: 14px;
+      animation: spin 1s linear infinite;
+    }
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
     }
   </style>
 </head>
@@ -86,7 +101,9 @@
     <input type="url" id="urlInput" placeholder="https://www.instagram.com/p/..." required>
     <button id="getLikesBtn">Get Likes</button>
 
-    <div id="loading" class="loading">Extracting likes... This may take a few seconds.</div>
+    <div id="loading" class="loading">
+      <span class="spinner"></span> Extracting likes...
+    </div>
     <div id="result" class="result-container"></div>
   </div>
 
@@ -109,7 +126,7 @@
 
       // Reset UI state
       btn.disabled = true;
-      loadingDiv.style.display = 'block';
+      loadingDiv.style.display = 'flex';
       resultDiv.style.display = 'none';
 
       try {
@@ -124,7 +141,8 @@
         const data = await response.json();
 
         if (response.ok && data.success) {
-          showResult(data.likes, true);
+          const formattedLikes = new Intl.NumberFormat('en-US').format(data.likes);
+          showResult(formattedLikes, true);
         } else {
           showResult(`Error: ${data.error || 'Failed to extract likes.'}`, false);
         }
@@ -138,7 +156,7 @@
 
     function showResult(message, isSuccess) {
       const resultDiv = document.getElementById('result');
-      resultDiv.textContent = isSuccess ? `Found: ${message}` : message;
+      resultDiv.textContent = isSuccess ? `Found: ${message} likes` : message;
       resultDiv.style.display = 'block';
       resultDiv.className = `result-container ${isSuccess ? 'success' : 'error'}`;
     }
