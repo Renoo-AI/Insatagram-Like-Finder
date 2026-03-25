@@ -8,30 +8,44 @@ const SESSION_FILE = path.join(__dirname, '../session.json');
 // Global browser and context instance
 let globalBrowser = null;
 let globalContext = null;
+let initPromise = null;
 
 async function initBrowser() {
-  if (globalBrowser && globalBrowser.isConnected()) {
+  if (globalBrowser && globalBrowser.isConnected() && globalContext) {
     return;
   }
 
+  // If an initialization is already in progress, wait for it
+  if (initPromise) {
+    return initPromise;
+  }
+
   if (globalBrowser) {
-    console.log('[PLAYWRIGHT] Browser disconnected. Reinitializing...');
+    console.log('[PLAYWRIGHT] Browser or context disconnected. Reinitializing...');
     await closeBrowser();
   }
 
-  console.log('[PLAYWRIGHT] Initializing global browser instance...');
+  initPromise = (async () => {
+    console.log('[PLAYWRIGHT] Initializing global browser instance...');
 
-  globalBrowser = await chromium.launch({ headless: true });
+    globalBrowser = await chromium.launch({ headless: true });
 
-  let contextOptions = {};
-  if (fs.existsSync(SESSION_FILE)) {
-    console.log('[PLAYWRIGHT] Loading session from session.json...');
-    contextOptions.storageState = SESSION_FILE;
-  } else {
-    console.log('[PLAYWRIGHT] No session.json found. Proceeding without authentication...');
+    let contextOptions = {};
+    if (fs.existsSync(SESSION_FILE)) {
+      console.log('[PLAYWRIGHT] Loading session from session.json...');
+      contextOptions.storageState = SESSION_FILE;
+    } else {
+      console.log('[PLAYWRIGHT] No session.json found. Proceeding without authentication...');
+    }
+
+    globalContext = await globalBrowser.newContext(contextOptions);
+  })();
+
+  try {
+    await initPromise;
+  } finally {
+    initPromise = null; // Clear the lock once done
   }
-
-  globalContext = await globalBrowser.newContext(contextOptions);
 }
 
 async function performScrape(url) {
@@ -119,6 +133,8 @@ async function scrapePlaywright(url) {
       return result;
     } catch (error) {
       console.log(`[PLAYWRIGHT] Attempt ${i + 1} failed.`);
+      // If we failed and are the only one, we can re-init. But a naive closeBrowser() hurts concurrent requests.
+      // We will rely on new pages catching the failure, but we won't aggressively destroy the global instance here.
       if (i === MAX_RETRIES - 1) {
          return { success: false, error: error.message };
       }
@@ -130,7 +146,9 @@ async function scrapePlaywright(url) {
 async function closeBrowser() {
   if (globalBrowser) {
     console.log('[PLAYWRIGHT] Closing global browser instance...');
-    await globalBrowser.close();
+    try {
+      await globalBrowser.close();
+    } catch(e) {}
     globalBrowser = null;
     globalContext = null;
   }
