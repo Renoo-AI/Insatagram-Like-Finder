@@ -3,6 +3,8 @@ const { normalizeLikes } = require('../utils/normalize');
 
 async function scrapeEmbed(url) {
   try {
+    console.log(`[EMBED] Attempt`);
+
     // Ensure URL ends with trailing slash before appending embed
     const cleanUrl = url.endsWith('/') ? url : `${url}/`;
     const embedUrl = `${cleanUrl}embed/`;
@@ -19,7 +21,7 @@ async function scrapeEmbed(url) {
     });
 
     if (!response.ok) {
-      console.log(`[EMBED] HTTP Error ${response.status}`);
+      console.log(`[EMBED] Failed (HTTP Error ${response.status})`);
       return { success: false, error: `Embed fetch returned status ${response.status}` };
     }
 
@@ -35,16 +37,17 @@ async function scrapeEmbed(url) {
         console.log(`[EMBED] Success! Extracted: ${number}`);
         return { success: true, likes: number };
       } else {
-        console.log(`[EMBED] Could not parse number from "${socialProofText}"`);
+        console.log(`[EMBED] Failed (Could not parse number from "${socialProofText}")`);
       }
     } else {
-      console.log(`[EMBED] .SocialProof a not found in HTML.`);
+      console.log(`[EMBED] Failed (.SocialProof a not found in HTML)`);
     }
 
     return { success: false, error: 'Likes not found in embed HTML.' };
 
   } catch (err) {
-    console.error(`[EMBED] Error: ${err.message}`);
+    console.error(`[ERROR] [EMBED] ${err.message}`);
+    console.log(`[EMBED] Failed`);
     return { success: false, error: err.message };
   }
 }

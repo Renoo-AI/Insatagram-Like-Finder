@@ -23,7 +23,17 @@ app.use('/api/', limiter);
 app.post('/api/get-likes', async (req, res) => {
   try {
     const { url } = req.body;
-    if (!url || !url.startsWith('https://www.instagram.com/')) {
+
+    if (!url) {
+      return res.status(400).json({ success: false, error: 'URL is required.' });
+    }
+
+    try {
+      const parsed = new URL(url);
+      if (parsed.hostname !== 'www.instagram.com' && parsed.hostname !== 'instagram.com') {
+        throw new Error('Invalid domain');
+      }
+    } catch (e) {
       return res.status(400).json({ success: false, error: 'Valid Instagram URL is required.' });
     }
 
@@ -32,12 +42,11 @@ app.post('/api/get-likes', async (req, res) => {
     // 1. Check Cache
     const cachedResult = getCache(url);
     if (cachedResult !== null) {
-      console.log(`[CACHE] Hit! Returning cached value: ${cachedResult}`);
+      console.log(`[CACHE HIT] ${url} -> ${cachedResult}`);
       return res.json({ success: true, likes: cachedResult });
     }
 
     // 2. Layer 1: Embed Scraper (Fast)
-    console.log('[PIPELINE] Starting Layer 1 (Embed Scraper)...');
     const embedResult = await scrapeEmbed(url);
 
     if (embedResult.success) {
@@ -46,19 +55,18 @@ app.post('/api/get-likes', async (req, res) => {
     }
 
     // 3. Layer 2: Playwright Scraper (Fallback)
-    console.log('[PIPELINE] Layer 1 failed. Falling back to Layer 2 (Playwright Scraper)...');
     const playwrightResult = await scrapePlaywright(url);
 
     if (playwrightResult.success) {
       setCache(url, playwrightResult.likes);
       return res.json(playwrightResult);
     } else {
-      console.log('[PIPELINE] Layer 2 failed.');
+      console.log('[PIPELINE] All layers failed.');
       return res.status(500).json({ success: false, error: playwrightResult.error || 'Failed to extract likes.' });
     }
 
   } catch (error) {
-    console.error('[API] Error:', error);
+    console.error(`[ERROR] [API] ${error.message}`);
     res.status(500).json({ success: false, error: 'Internal server error.' });
   }
 });
