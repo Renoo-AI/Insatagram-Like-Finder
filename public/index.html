@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Instagram Likes Extractor</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background-color: #fafafa;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      margin: 0;
+    }
+    .container {
+      background: white;
+      padding: 30px;
+      border-radius: 8px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+      text-align: center;
+      width: 100%;
+      max-width: 400px;
+    }
+    h1 {
+      font-size: 24px;
+      margin-bottom: 20px;
+      color: #333;
+    }
+    input[type="url"] {
+      width: calc(100% - 22px);
+      padding: 10px;
+      margin-bottom: 15px;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      font-size: 16px;
+    }
+    button {
+      background-color: #0095f6;
+      color: white;
+      border: none;
+      padding: 10px 20px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 16px;
+      width: 100%;
+    }
+    button:hover {
+      background-color: #007bb5;
+    }
+    button:disabled {
+      background-color: #a0d4f6;
+      cursor: not-allowed;
+    }
+    .result-container {
+      margin-top: 20px;
+      padding: 15px;
+      border-radius: 4px;
+      display: none;
+    }
+    .success {
+      background-color: #e6ffed;
+      border: 1px solid #c3e6cb;
+      color: #155724;
+    }
+    .error {
+      background-color: #ffe6e6;
+      border: 1px solid #f5c6cb;
+      color: #721c24;
+    }
+    .loading {
+      margin-top: 15px;
+      font-size: 14px;
+      color: #666;
+      display: none;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="container">
+    <h1>Instagram Likes</h1>
+    <p>Enter an Instagram Reel or Post URL to get the number of likes.</p>
+
+    <input type="url" id="urlInput" placeholder="https://www.instagram.com/p/..." required>
+    <button id="getLikesBtn">Get Likes</button>
+
+    <div id="loading" class="loading">Extracting likes... This may take a few seconds.</div>
+    <div id="result" class="result-container"></div>
+  </div>
+
+  <script>
+    document.getElementById('getLikesBtn').addEventListener('click', async () => {
+      const urlInput = document.getElementById('urlInput').value.trim();
+      const resultDiv = document.getElementById('result');
+      const loadingDiv = document.getElementById('loading');
+      const btn = document.getElementById('getLikesBtn');
+
+      if (!urlInput) {
+        showResult('Please enter a valid URL.', false);
+        return;
+      }
+
+      if (!urlInput.startsWith('https://www.instagram.com/')) {
+        showResult('Please enter a valid Instagram URL.', false);
+        return;
+      }
+
+      // Reset UI state
+      btn.disabled = true;
+      loadingDiv.style.display = 'block';
+      resultDiv.style.display = 'none';
+
+      try {
+        const response = await fetch('/api/get-likes', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ url: urlInput })
+        });
+
+        const data = await response.json();
+
+        if (response.ok && data.success) {
+          showResult(data.likes, true);
+        } else {
+          showResult(`Error: ${data.error || 'Failed to extract likes.'}`, false);
+        }
+      } catch (error) {
+        showResult('An error occurred while connecting to the server.', false);
+      } finally {
+        btn.disabled = false;
+        loadingDiv.style.display = 'none';
+      }
+    });
+
+    function showResult(message, isSuccess) {
+      const resultDiv = document.getElementById('result');
+      resultDiv.textContent = isSuccess ? `Found: ${message}` : message;
+      resultDiv.style.display = 'block';
+      resultDiv.className = `result-container ${isSuccess ? 'success' : 'error'}`;
+    }
+  </script>
+
+</body>
+</html>
